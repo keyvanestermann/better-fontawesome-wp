@@ -29,6 +29,10 @@ Allows you to use the latest version of FontAwesome with Elementor (currently 6.
 
 == Changelog ==
 
+= 1.1.0 =
+
+- We download Fontawesome from its official CDN, instead of including it
+
 = 1.0.0 =
 
 - Hello world! Feel free to contribute to the todo list :)
