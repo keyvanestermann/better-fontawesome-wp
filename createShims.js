@@ -1,6 +1,6 @@
 /**
  * This script is used to generate the JSON files in assets/shims, they are used by Elementor for the icon picker
- * The icons are extracted from the FontAwesome Javascript files
+ * The icons were manually extracted from the FontAwesome Javascript files
  */
 const fs = require("fs");
 
