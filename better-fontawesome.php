@@ -6,7 +6,7 @@
  * Version:         1.0.0
  * Description:     Allows you to use any version of Fontawesome with Wordpress & Elementor
  * Author:          Keyvan ESTERMANN
- * Author URI:      https://swift-dev.fr/
+ * Author URI:      https://github.com/keyvanestermann
  * License: GPL-2
  * License URI: https://www.gnu.org/licenses/gpl-3.0.en.html
  */
