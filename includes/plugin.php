@@ -8,10 +8,10 @@ if (! defined('ABSPATH')) {
 
 class Better_Fontawesome
 {
+  const DEBUG = false;
   /**
    * Plugin Version
    *
-   * @since 1.0.0
    * @var string The plugin version.
    */
   const VERSION = '1.1.0';
@@ -19,14 +19,12 @@ class Better_Fontawesome
   /**
    * Default Fontawesome version
    *
-   * @since 1.1.0
    * @var string Default Fontawesome version that will be downloaded.
    */
   const DEFAULT_FONTAWESOME_VERSION = '6.7.2';
 
   /**
    * Fontawesome CDN URL to download versions
-   * @since 1.1.0
    */
   const FONTAWESOME_CDN_URL = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/';
 
@@ -38,7 +36,6 @@ class Better_Fontawesome
   /**
    * Minimum Elementor Version
    *
-   * @since 1.0.0
    * @var string Minimum Elementor version required to run the addon.
    */
   const MINIMUM_ELEMENTOR_VERSION = '3.20.0';
@@ -46,7 +43,6 @@ class Better_Fontawesome
   /**
    * Minimum PHP Version
    *
-   * @since 1.0.0
    * @var string Minimum PHP version required to run the addon.
    */
   const MINIMUM_PHP_VERSION = '7.4';
@@ -74,6 +70,13 @@ class Better_Fontawesome
   const OPTION_NAME = 'bf_options';
 
   /**
+   * Options array from get_option
+   *
+   * @var array
+   */
+  private $options = null;
+
+  /**
    * @var bool If true, Elementor is installed and activated
    */
   private $use_elementor = false;
@@ -93,17 +96,34 @@ class Better_Fontawesome
 
   /**
    * Available Fontawesome versions to choose from
-   * @since 1.1.0
    * @var array
    */
   private $available_versions = [
     '6.7.2' => [
       'label' => 'v6.7.2 (Latest)',
-      'files' => ['fontawesome.min.css', 'regular.min.css', 'solid.min.css', 'brands.min.css'],
+      'files' => ['main' => 'fontawesome.min.css', 'regular' => 'regular.min.css', 'solid' => 'solid.min.css', 'brands' => 'brands.min.css'],
+      'font_files' => [
+        'fa-brands-400.woff2',
+        'fa-brands-400.ttf',
+        'fa-regular-400.woff2',
+        'fa-regular-400.ttf',
+        'fa-solid-900.woff2',
+        'fa-solid-900.ttf',
+        'fa-v4compatibility.woff2',
+        'fa-v4compatibility.ttf'
+      ]
     ],
     '5.15.3' => [
       'label' => 'v5.15.4',
-      'files' => ['fontawesome.min.css', 'regular.min.css', 'solid.min.css', 'brands.min.css'],
+      'files' => ['main' => 'fontawesome.min.css', 'regular' => 'regular.min.css', 'solid' => 'solid.min.css', 'brands' => 'brands.min.css'],
+      'font_files' => [
+        'fa-brands-400.woff2',
+        'fa-brands-400.ttf',
+        'fa-regular-400.woff2',
+        'fa-regular-400.ttf',
+        'fa-solid-900.woff2',
+        'fa-solid-900.ttf'
+      ],
     ]
   ];
 
@@ -128,43 +148,21 @@ class Better_Fontawesome
    * Perform some compatibility checks to make sure basic requirements are meet.
    * If all compatibility checks pass, initialize the functionality.
    *
-   * @since 1.0.0
    * @access public
    */
   public function __construct()
   {
     $this->plugin_url = BETTER_FONTAWESOME_URL;
-    $this->fontawesome_version = self::DEFAULT_FONTAWESOME_VERSION;
-    $this->main_stylesheet = $this->plugin_url  . 'assets/fontawesome/css/fontawesome.min.css';
 
-    if ($this->is_compatible()) {
-      register_activation_hook(BETTER_FONTAWESOME_FILE, [$this, 'activate']);
-      add_action('init', [$this, 'init']);
-    }
-  }
+    register_activation_hook(BETTER_FONTAWESOME_FILE, [$this, 'activate']);
 
-  /**
-   * Initialize
-   *
-   * Load the addons functionality only after Elementor is initialized.
-   *
-   * Fired by `elementor/init` action hook.
-   *
-   * @since 1.0.0
-   * @access public
-   */
-  public function init(): void
-  {
-
-    if ($this->use_elementor) {
-      add_action('elementor/icons_manager/native', [$this, 'register_elementor_icons']);
-    }
-
-    add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
+    add_action('plugins_loaded', [$this, 'init']); // We hook on 'plugins_loaded' because we need Elementor to be loaded
   }
 
   /**
    * Plugin installation
+   * Fired by Wordpress activation hook
+   * Create options in database and download FontAwesome
    *
    * @return void
    */
@@ -172,17 +170,64 @@ class Better_Fontawesome
   {
     // Add default options to database
     $options = [
-      'version' => $this->fontawesome_version,
+      'version' => self::DEFAULT_FONTAWESOME_VERSION,
       'installed' => false,
       'last_updated' => current_time('mysql')
     ];
 
-    add_option(self::OPTION_NAME, $options);
-
+    if (get_option(self::OPTION_NAME)) {
+      update_option(self::OPTION_NAME, $options);
+    } else {
+      add_option(self::OPTION_NAME, $options);
+    }
+    
     // Download default version
-    $this->download_fontawesome($this->fontawesome_version);
+    $this->download_fontawesome(self::DEFAULT_FONTAWESOME_VERSION);
   }
 
+  /**
+   * Initialize
+   *
+   * Load the plugin functionality only after FontAwesome is downloaded
+   *
+   * Fired by Wordpress `init` action hook.
+   *
+   * @access public
+   */
+  public function init(): void
+  {
+    // Load options from database
+    $this->load_options();
+
+    // Check if Elementor installed and activated
+    if (did_action('elementor/loaded')) {
+      $this->use_elementor = true;
+    }
+
+    if ($this->is_compatible()) {
+      // If Elementor is installed and activated, bind to hook and alter default icons
+      if ($this->use_elementor) {
+        add_action('elementor/icons_manager/native', [$this, 'register_elementor_icons']);
+      }
+
+      // With or without Elementor, we enqueue Fontawesome
+      add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
+    }
+  }
+
+  /**
+   * Load options from database
+   *
+   * @return void
+   */
+  public function load_options()
+  {
+    $options = get_option(self::OPTION_NAME);
+    if (isset($options['installed']) && $options['installed']) {
+      $this->options = $options;
+      $this->fontawesome_version = isset($options['version']) ? $options['version'] : self::DEFAULT_FONTAWESOME_VERSION;
+    }
+  }
 
   /**
    * Download FontAwesome version
@@ -204,27 +249,36 @@ class Better_Fontawesome
       WP_Filesystem();
     }
 
-    // Create directory if it doesn't exist
-    $upload_dir = wp_upload_dir();
-    $fontawesome_dir = $upload_dir['basedir'] . '/' . self::DOWNLOAD_DIRECTORY;
-
-    if (!file_exists($fontawesome_dir)) {
-      wp_mkdir_p($fontawesome_dir);
+    // Create subdirectories in uploads directory
+    $upload_dir = wp_upload_dir()['basedir'];
+    $download_dir = $upload_dir . '/' . self::DOWNLOAD_DIRECTORY . '/' . $version;
+    $css_dir = $download_dir . '/css';
+    $webfonts_dir = $download_dir . '/webfonts';
+    if (!file_exists($download_dir)) {
+      wp_mkdir_p($css_dir);
+      wp_mkdir_p($webfonts_dir);
     }
 
-    // Create version directory
-    $version_dir = $fontawesome_dir . '/' . $version;
-    if (!file_exists($version_dir)) {
-      wp_mkdir_p($version_dir);
-    }
-
-    // Download and extract files
     $downloadError = false;
+
+    // Download CSS files
     foreach ($this->available_versions[$version]['files'] as $file) {
       $css_url = self::FONTAWESOME_CDN_URL . $version . '/css/' . $file;
       $css_content = wp_remote_retrieve_body(wp_remote_get($css_url));
       if (!empty($css_content)) {
-        $wp_filesystem->put_contents($version_dir . '/' . $file, $css_content);
+        $wp_filesystem->put_contents($css_dir . '/' . $file, $css_content);
+      } else {
+        $downloadError = true;
+        break;
+      }
+    }
+
+    // Download webfonts files
+    foreach ($this->available_versions[$version]['font_files'] as $file) {
+      $file_url = self::FONTAWESOME_CDN_URL . $version . '/webfonts/' . $file;
+      $file_content = wp_remote_retrieve_body(wp_remote_get($file_url));
+      if (!empty($file_content)) {
+        $wp_filesystem->put_contents($webfonts_dir . '/' . $file, $file_content);
       } else {
         $downloadError = true;
         break;
@@ -259,37 +313,37 @@ class Better_Fontawesome
       'fa-regular' => [
         'name' => 'fa-regular',
         'label' => "Font Awesome - Regular - v" . $this->fontawesome_version,
-        'url' => $this->plugin_url . 'assets/fontawesome/css/regular.min.css',
-        'enqueue' => [$this->main_stylesheet],
+        'url' => $this->get_regular_stylesheet_url(),
+        'enqueue' => [$this->get_main_stylesheet_url()],
         'prefix' => 'fa-',
         'displayPrefix' => 'far',
         'labelIcon' => 'fab fa-font-awesome-alt',
         'ver' => $this->fontawesome_version,
-        'fetchJson' => $this->plugin_url . 'assets/shims/regular.json',
+        'fetchJson' => $this->get_json_url($this->fontawesome_version) . 'regular.json',
         'native' => true,
       ],
       'fa-solid' => [
         'name' => 'fa-solid',
         'label' => "Font Awesome - Solid - v" . $this->fontawesome_version,
-        'url' => $this->plugin_url . 'assets/fontawesome/css/solid.min.css',
-        'enqueue' => [$this->main_stylesheet],
+        'url' => $this->get_solid_stylesheet_url(),
+        'enqueue' => [$this->get_main_stylesheet_url()],
         'prefix' => 'fa-',
         'displayPrefix' => 'fas',
         'labelIcon' => 'fab fa-font-awesome',
         'ver' => $this->fontawesome_version,
-        'fetchJson' => $this->plugin_url . 'assets/shims/solid.json',
+        'fetchJson' => $this->get_json_url($this->fontawesome_version) . 'solid.json',
         'native' => true,
       ],
       'fa-brands' => [
         'name' => 'fa-brands',
         'label' => "Font Awesome - Brands - v" . $this->fontawesome_version,
-        'url' => $this->plugin_url . 'assets/fontawesome/css/brands.min.css',
-        'enqueue' => [$this->main_stylesheet],
+        'url' => $this->get_brands_stylesheet_url(),
+        'enqueue' => [$this->get_main_stylesheet_url()],
         'prefix' => 'fa-',
         'displayPrefix' => 'fab',
         'labelIcon' => 'fab fa-font-awesome-flag',
         'ver' => $this->fontawesome_version,
-        'fetchJson' => $this->plugin_url . 'assets/shims/brands.json',
+        'fetchJson' => $this->get_json_url($this->fontawesome_version) . 'brands.json',
         'native' => true,
       ]
     ];
@@ -303,10 +357,11 @@ class Better_Fontawesome
    */
   public function enqueue_scripts(): void
   {
+
     // Main stylesheet
     $this->enqueue_style_if_not_exists(
       self::ELEMENTOR_ICONS_HANDLE_SHARED,
-      $this->main_stylesheet,
+      $this->get_main_stylesheet_url(),
       [],
       $this->fontawesome_version
     );
@@ -332,6 +387,10 @@ class Better_Fontawesome
    */
   public function register_elementor_icons($initial_tabs): array
   {
+    if (self::DEBUG) {
+      $this->debug($initial_tabs);
+      $this->debug(array_merge($initial_tabs, $this->get_icons()));
+    }
     return array_merge($initial_tabs, $this->get_icons());
   }
 
@@ -340,16 +399,10 @@ class Better_Fontawesome
    *
    * Checks whether the site meets the addon requirement.
    *
-   * @since 1.0.0
    * @access public
    */
   public function is_compatible(): bool
   {
-
-    // Check if Elementor installed and activated
-    if (did_action('elementor/loaded')) {
-      $this->use_elementor = true;
-    }
 
     // Check for required Elementor version
     if ($this->use_elementor && ! version_compare(ELEMENTOR_VERSION, self::MINIMUM_ELEMENTOR_VERSION, '>=')) {
@@ -392,5 +445,72 @@ class Better_Fontawesome
       wp_enqueue_style($handle);
       return true;
     }
+  }
+
+  /**
+   * Get the upload directory of a specific Fontawesome version
+   *
+   * @param string $version - Fontawesome version
+   * @return string - upload directory with end trailing slash
+   */
+  public function get_fa_directory(): string
+  {
+    return wp_get_upload_dir()['basedir'] . '/' . self::DOWNLOAD_DIRECTORY . '/' . $this->fontawesome_version . '/';
+  }
+
+  /**
+   * Get the public URL for the files of a specific Fontawesome version
+   *
+   * @param string $version - Fontawesome version
+   * @return string - public url with end trailing slash
+   */
+  public function get_fa_url(): string
+  {
+    return wp_get_upload_dir()['baseurl'] . '/' . self::DOWNLOAD_DIRECTORY . '/' . $this->fontawesome_version . '/css/';
+  }
+
+  public function get_main_stylesheet_url(): string
+  {
+    return $this->get_fa_url() . $this->available_versions[$this->fontawesome_version]['files']['main'];
+  }
+
+  public function get_regular_stylesheet_url(): string
+  {
+    return $this->get_fa_url() . $this->available_versions[$this->fontawesome_version]['files']['regular'];
+  }
+
+  public function get_solid_stylesheet_url(): string
+  {
+    return $this->get_fa_url() . $this->available_versions[$this->fontawesome_version]['files']['solid'];
+  }
+
+  public function get_brands_stylesheet_url(): string
+  {
+    return $this->get_fa_url() . $this->available_versions[$this->fontawesome_version]['files']['brands'];
+  }
+
+  /**
+   * Get the public URL to the JSON files containing the icon list for the Elementor Icon Library
+   *
+   * @param string $version
+   * @return string - public url with end trailing slash
+   */
+  public function get_json_url($version): string
+  {
+    return $this->plugin_url . 'assets/json/' . $version . '/';
+  }
+
+  private function debug($args)
+  {
+    // Only execute in a development environment
+    if (!defined('WP_DEBUG') || !WP_DEBUG) {
+      return;
+    }
+
+    echo '<div style="background:#f1f1f1; padding:20px; font-size: 10px; margin-top:20px; border:1px solid #ddd;">';
+    echo '<pre>';
+    print_r($args);
+    echo '</pre>';
+    echo '</div>';
   }
 }
