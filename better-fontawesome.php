@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Plugin Name:     Better Fontawesome For Wordpress & Elementor
+ * Plugin Name:     Better Fontawesome (compatible with Elementor)
  * Plugin URI:      https://wordpress.org/plugins/better-fontawesome
  * Version:         1.0.0
  * Description:     Allows you to use any version of Fontawesome with Wordpress & Elementor
