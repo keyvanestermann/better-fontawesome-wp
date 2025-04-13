@@ -14,7 +14,26 @@ class Better_Fontawesome
    * @since 1.0.0
    * @var string The plugin version.
    */
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
+
+  /**
+   * Default Fontawesome version
+   *
+   * @since 1.1.0
+   * @var string Default Fontawesome version that will be downloaded.
+   */
+  const DEFAULT_FONTAWESOME_VERSION = '6.7.2';
+
+  /**
+   * Fontawesome CDN URL to download versions
+   * @since 1.1.0
+   */
+  const FONTAWESOME_CDN_URL = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/';
+
+  /**
+   * Download directory for Fontawesome assets
+   */
+  const DOWNLOAD_DIRECTORY = 'better-fontawesome';
 
   /**
    * Minimum Elementor Version
@@ -50,6 +69,11 @@ class Better_Fontawesome
   const ELEMENTOR_ICONS_HANDLE_SHARED = self::ELEMENTOR_ICONS_HANDLE . 'shared-0';
 
   /**
+   * Name in wp_options
+   */
+  const OPTION_NAME = 'bf_options';
+
+  /**
    * @var bool If true, Elementor is installed and activated
    */
   private $use_elementor = false;
@@ -65,7 +89,23 @@ class Better_Fontawesome
    *
    * @var string Fontawesome version number 
    */
-  public $fontawesome_version = "6.7.2";
+  public $fontawesome_version = null;
+
+  /**
+   * Available Fontawesome versions to choose from
+   * @since 1.1.0
+   * @var array
+   */
+  private $available_versions = [
+    '6.7.2' => [
+      'label' => 'v6.7.2 (Latest)',
+      'files' => ['fontawesome.min.css', 'regular.min.css', 'solid.min.css', 'brands.min.css'],
+    ],
+    '5.15.3' => [
+      'label' => 'v5.15.4',
+      'files' => ['fontawesome.min.css', 'regular.min.css', 'solid.min.css', 'brands.min.css'],
+    ]
+  ];
 
   /**
    * Icons configuration array
@@ -94,9 +134,11 @@ class Better_Fontawesome
   public function __construct()
   {
     $this->plugin_url = BETTER_FONTAWESOME_URL;
+    $this->fontawesome_version = self::DEFAULT_FONTAWESOME_VERSION;
     $this->main_stylesheet = $this->plugin_url  . 'assets/fontawesome/css/fontawesome.min.css';
 
     if ($this->is_compatible()) {
+      register_activation_hook(BETTER_FONTAWESOME_FILE, [$this, 'activate']);
       add_action('init', [$this, 'init']);
     }
   }
@@ -119,6 +161,87 @@ class Better_Fontawesome
     }
 
     add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
+  }
+
+  /**
+   * Plugin installation
+   *
+   * @return void
+   */
+  public function activate(): void
+  {
+    // Add default options to database
+    $options = [
+      'version' => $this->fontawesome_version,
+      'installed' => false,
+      'last_updated' => current_time('mysql')
+    ];
+
+    add_option(self::OPTION_NAME, $options);
+
+    // Download default version
+    $this->download_fontawesome($this->fontawesome_version);
+  }
+
+
+  /**
+   * Download FontAwesome version
+   *
+   * @param string $version - FontAwesome version to download
+   * @return bool true if successful
+   */
+  public function download_fontawesome($version): bool
+  {
+    // Check if version exists
+    if (!isset($this->available_versions[$version])) {
+      return false;
+    }
+
+    // Get WordPress file system
+    global $wp_filesystem;
+    if (empty($wp_filesystem)) {
+      require_once(ABSPATH . '/wp-admin/includes/file.php');
+      WP_Filesystem();
+    }
+
+    // Create directory if it doesn't exist
+    $upload_dir = wp_upload_dir();
+    $fontawesome_dir = $upload_dir['basedir'] . '/' . self::DOWNLOAD_DIRECTORY;
+
+    if (!file_exists($fontawesome_dir)) {
+      wp_mkdir_p($fontawesome_dir);
+    }
+
+    // Create version directory
+    $version_dir = $fontawesome_dir . '/' . $version;
+    if (!file_exists($version_dir)) {
+      wp_mkdir_p($version_dir);
+    }
+
+    // Download and extract files
+    $downloadError = false;
+    foreach ($this->available_versions[$version]['files'] as $file) {
+      $css_url = self::FONTAWESOME_CDN_URL . $version . '/css/' . $file;
+      $css_content = wp_remote_retrieve_body(wp_remote_get($css_url));
+      if (!empty($css_content)) {
+        $wp_filesystem->put_contents($version_dir . '/' . $file, $css_content);
+      } else {
+        $downloadError = true;
+        break;
+      }
+    }
+
+    if (!$downloadError) {
+      // Update options
+      $options = get_option(self::OPTION_NAME);
+      $options['installed'] = true;
+      $options['last_updated'] = current_time('mysql');
+      update_option(self::OPTION_NAME, $options);
+
+      return true;
+    }
+
+    return false;
   }
 
   /**

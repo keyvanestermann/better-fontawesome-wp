@@ -20,10 +20,8 @@ if (! defined('ABSPATH')) {
 define('BETTER_FONTAWESOME_FILE', __FILE__);
 define('BETTER_FONTAWESOME_URL', plugins_url('/', BETTER_FONTAWESOME_FILE));
 
-add_action('plugins_loaded', function () {
-  // Load plugin file
-  require_once(__DIR__ . '/includes/plugin.php');
+// Load plugin file
+require_once(__DIR__ . '/includes/plugin.php');
 
-  // Run the plugin
-  new Better_Fontawesome();
-});
+// Run the plugin
+new Better_Fontawesome();
