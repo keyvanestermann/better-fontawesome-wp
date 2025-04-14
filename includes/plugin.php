@@ -8,13 +8,12 @@ if (! defined('ABSPATH')) {
 
 class Better_Fontawesome
 {
-  const DEBUG = false;
   /**
    * Plugin Version
    *
    * @var string The plugin version.
    */
-  const VERSION = '1.1.0';
+  const VERSION = '1.2.0';
 
   /**
    * Default Fontawesome version
@@ -483,10 +482,6 @@ class Better_Fontawesome
    */
   public function register_elementor_icons($initial_tabs): array
   {
-    if (self::DEBUG) {
-      $this->debug($initial_tabs);
-      $this->debug(array_merge($initial_tabs, $this->get_icons()));
-    }
     return array_merge($initial_tabs, $this->get_icons());
   }
 
@@ -594,19 +589,5 @@ class Better_Fontawesome
   public function get_json_url($version): string
   {
     return $this->plugin_url . 'assets/json/' . $version . '/';
-  }
-
-  private function debug($args)
-  {
-    // Only execute in a development environment
-    if (!defined('WP_DEBUG') || !WP_DEBUG) {
-      return;
-    }
-
-    echo '<div style="background:#f1f1f1; padding:20px; font-size: 10px; margin-top:20px; border:1px solid #ddd;">';
-    echo '<pre>';
-    print_r($args);
-    echo '</pre>';
-    echo '</div>';
   }
 }

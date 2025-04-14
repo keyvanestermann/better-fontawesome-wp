@@ -3,8 +3,8 @@
 /**
  * Plugin Name:     Better Fontawesome (compatible with Elementor)
  * Plugin URI:      https://wordpress.org/plugins/better-fontawesome
- * Version:         1.1.0
- * Description:     Allows you to use the latest version of FontAwesome with Elementor (currently 6.7.2)
+ * Version:         1.2.0
+ * Description:     Allows you to choose which version of FontAwesome to use with WP and Elementor (currently 5.13.3 or 6.7.2)
  * Author:          Keyvan ESTERMANN
  * Author URI:      https://github.com/keyvanestermann
  * License: GPL-2

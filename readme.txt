@@ -4,15 +4,15 @@ Tags: elementor, fontawesome
 Requires at least: 5.2
 Tested up to: 6.7.2
 Requires PHP: 5.6
-Stable tag: 1.0.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Allows you to use the latest version of FontAwesome with Elementor (currently 6.7.2)
+Allows you to choose which version of FontAwesome to use with WP and Elementor (currently 5.13.3 or 6.7.2)
 
 == Description ==
 
-Allows you to use the latest version of FontAwesome with Elementor (currently 6.7.2)
+Allows you to choose which version of FontAwesome to use with WP and Elementor (currently 5.13.3 or 6.7.2)
 
 == Installation ==
 
@@ -21,13 +21,14 @@ Allows you to use the latest version of FontAwesome with Elementor (currently 6.
 
 == Todo ==
 
-* Allow user to pick which version of FontAwesome to use
 * Allow user to choose wether they want to include FA globally outside Elementor pages or not
 * Allow user to choose wether they want to replace the icons provided by Elementor Icon Picker, or not (if they want to use two different versions of FA ?)
-* Download FontAwesome instead of including it
-* Admin page
 
 == Changelog ==
+
+= 1.2.0 =
+
+- Admin page with version selection
 
 = 1.1.0 =
 
