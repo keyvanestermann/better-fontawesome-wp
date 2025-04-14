@@ -9,13 +9,6 @@ if (! defined('ABSPATH')) {
 class Better_Fontawesome
 {
   /**
-   * Plugin Version
-   *
-   * @var string The plugin version.
-   */
-  const VERSION = '1.2.0';
-
-  /**
    * Default Fontawesome version
    *
    * @var string Default Fontawesome version that will be downloaded.

@@ -1,6 +1,16 @@
 # better-fontawesome
 
-See readme.txt for details
+This is a Wordpress plugin. 
+
+It allows you to choose which version of FontAwesome to use with Wordpress and Elementor (currently 5.13.3 or 6.7.2)
+
+See readme.txt for more details
+
+
+## Screenshots
+
+![options page screenshot](https://raw.githubusercontent.com/keyvanestermann/better-fontawesome-wp/refs/heads/main/assets/screenshot-1.png "Options page")
+![elementor builder screenshot](https://raw.githubusercontent.com/keyvanestermann/better-fontawesome-wp/refs/heads/main/assets/screenshot-2.png "Elementor builder")
 
 ## Downloading the plugin from this repository
 
