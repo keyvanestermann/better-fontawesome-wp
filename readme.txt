@@ -23,6 +23,8 @@ Allows you to choose which version of FontAwesome to use with WP and Elementor (
 
 * Allow user to choose wether they want to include FA globally outside Elementor pages or not
 * Allow user to choose wether they want to replace the icons provided by Elementor Icon Picker, or not (if they want to use two different versions of FA ?)
+* Fallback if downloading from the CDN does not work anymore
+* Globally more checks and error catching
 
 == Changelog ==
 
