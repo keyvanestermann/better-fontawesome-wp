@@ -153,10 +153,14 @@ class Better_Fontawesome
   public function __construct()
   {
     $this->plugin_url = BETTER_FONTAWESOME_URL;
-
-    register_activation_hook(BETTER_FONTAWESOME_FILE, [$this, 'activate']);
-
-    add_action('plugins_loaded', [$this, 'init']); // We hook on 'plugins_loaded' because we need Elementor to be loaded
+    // First installation
+    register_activation_hook(BETTER_FONTAWESOME_FILE, [$this, '_activate']);
+    // We hook on 'plugins_loaded' because we need Elementor to be loaded
+    add_action('plugins_loaded', [$this, '_load']);
+    // Register admin page
+    add_action('admin_menu', [$this, '_add_admin_page']);
+    // Register settings using the Settings API
+    add_action('admin_init', [$this, '_register_settings']);
   }
 
   /**
@@ -166,21 +170,20 @@ class Better_Fontawesome
    *
    * @return void
    */
-  public function activate(): void
+  public function _activate(): void
   {
     // Add default options to database
     $options = [
-      'version' => self::DEFAULT_FONTAWESOME_VERSION,
-      'installed' => false,
-      'last_updated' => current_time('mysql')
+      'version' => self::DEFAULT_FONTAWESOME_VERSION
     ];
 
+    // Create or update (we reset to plugin defaults on reactivation, maybe change that behavior later idk)
     if (get_option(self::OPTION_NAME)) {
       update_option(self::OPTION_NAME, $options);
     } else {
       add_option(self::OPTION_NAME, $options);
     }
-    
+
     // Download default version
     $this->download_fontawesome(self::DEFAULT_FONTAWESOME_VERSION);
   }
@@ -190,14 +193,19 @@ class Better_Fontawesome
    *
    * Load the plugin functionality only after FontAwesome is downloaded
    *
-   * Fired by Wordpress `init` action hook.
+   * Fired by Wordpress `plugins_loaded` action hook.
    *
    * @access public
    */
-  public function init(): void
+  public function _load(): void
   {
-    // Load options from database
+    // Load options from database, this sets $this->fontawesome_version to the currently selected version of Fontawesome
     $this->load_options();
+
+    // Check if files exist for current version of FA, or otherwise download
+    if (!$this->is_fontawesome_downloaded()) {
+      $this->download_fontawesome();
+    }
 
     // Check if Elementor installed and activated
     if (did_action('elementor/loaded')) {
@@ -223,20 +231,23 @@ class Better_Fontawesome
   public function load_options()
   {
     $options = get_option(self::OPTION_NAME);
-    if (isset($options['installed']) && $options['installed']) {
-      $this->options = $options;
-      $this->fontawesome_version = isset($options['version']) ? $options['version'] : self::DEFAULT_FONTAWESOME_VERSION;
-    }
+    $this->options = $options;
+    $this->fontawesome_version = isset($options['version']) ? $options['version'] : self::DEFAULT_FONTAWESOME_VERSION;
   }
 
   /**
    * Download FontAwesome version
    *
-   * @param string $version - FontAwesome version to download
+   * @param string|null $version - FontAwesome version to download, or null to download currently selected version
    * @return bool true if successful
    */
-  public function download_fontawesome($version): bool
+  public function download_fontawesome($version = null): bool
   {
+    // If no version provided, set default version to currently selected version, of plugin default
+    if ($version === null) {
+      $version = $this->fontawesome_version ? $this->fontawesome_version : self::DEFAULT_FONTAWESOME_VERSION;
+    }
+
     // Check if version exists
     if (!isset($this->available_versions[$version])) {
       return false;
@@ -288,14 +299,26 @@ class Better_Fontawesome
     if (!$downloadError) {
       // Update options
       $options = get_option(self::OPTION_NAME);
-      $options['installed'] = true;
-      $options['last_updated'] = current_time('mysql');
       update_option(self::OPTION_NAME, $options);
 
       return true;
+    } else {
+      throw new \Error("BFA : Download error");
     }
 
     return false;
+  }
+
+  /**
+   * Check if this version of FontAwesome has been downloaded
+   *
+   * @return boolean true if the files are present
+   */
+  public function is_fontawesome_downloaded(): bool
+  {
+    $upload_dir = wp_upload_dir()['basedir'];
+    $download_dir = $upload_dir . '/' . self::DOWNLOAD_DIRECTORY . '/' . $this->fontawesome_version;
+    return file_exists($download_dir);
   }
 
   /**
@@ -375,6 +398,79 @@ class Better_Fontawesome
         $this->fontawesome_version
       );
     }
+  }
+
+  /**
+   * Add admin page
+   *
+   * @return void
+   */
+  public function _add_admin_page()
+  {
+    add_options_page(
+      'Better Fontawesome',
+      'Better Fontawesome',
+      'manage_options',
+      'better-fontawesome',
+      [$this, '_admin_page']
+    );
+  }
+
+  /**
+   * Admin page
+   */
+  public function _admin_page(): void
+  {
+    // Check user capability
+    if (!current_user_can('manage_options')) {
+      return;
+    }
+
+    ob_start();
+    include 'pages/admin-page.php';
+    echo ob_get_clean();
+  }
+
+  /**
+   * Registers sections and fields for the admin page, using the Settings API
+   *
+   * @return void
+   */
+  public function _register_settings(): void
+  {
+    // Register settings group name for specified option in database
+    register_setting('better_fontawesome', self::OPTION_NAME);
+
+    // Registers a section using the Settings API (retrieved with do_settings_sections() in the admin page)
+    add_settings_section(
+      'better_fontawesome_section_version',
+      'Font Awesome Version',
+      [$this, '_settings_section_version'],
+      'better-fontawesome'
+    );
+
+    // Registers a field using the Settings API (retrieved with settings_fields() in the admin page)
+    add_settings_field(
+      'better_fontawesome_field_version',
+      'Version',
+      [$this, '_settings_field_version'],
+      'better-fontawesome',
+      'better_fontawesome_section_version'
+    );
+  }
+
+  public function _settings_section_version(): void
+  {
+    ob_start();
+    include 'settings/section-version.php';
+    echo ob_get_clean();
+  }
+
+  public function _settings_field_version(): void
+  {
+    ob_start();
+    include 'settings/field-version.php';
+    echo ob_get_clean();
   }
 
   /**
